@@ -12,7 +12,7 @@ var dots = [];
 
 var GAMES = 256;
 var GAMES_PER_GENERATION = 20;
-var GENERATIONS_PER_TRAINING = 50;
+var GENERATIONS_PER_TRAINING = 20;
 var SECONDS_PER_GAME = 5;
 var PLAYER_COUNT = 2;
 var TAGGER_COUNT = 1;
@@ -37,6 +37,7 @@ app.get('/', function(req, res){
 
 io.on('connection', function(socket) {
     socket.emit('players', writtenPlayers);
+    socket.emit('msg', (training?'Red':'Blue') + ' dot has been trained');
 });
 
 function newGeneration() {
@@ -47,6 +48,7 @@ function newGeneration() {
     if (generations % (GENERATIONS_PER_TRAINING*GAMES_PER_GENERATION) == 0) {
         training = (training + 1) % PLAYER_COUNT;
         console.log("Begin training of", training);
+        io.emit('msg', (training?'Red':'Blue') + ' dot has been trained');
         writeBestToDisk();
     }
     ticks = 0;

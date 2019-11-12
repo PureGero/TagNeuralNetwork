@@ -7,6 +7,7 @@
         <script src="neat.js"></script>
     </head>
     <body>
+        <div id="overlay" style="font-size: 32px; font-family: Arial; text-align: center; padding-top: 280px; width: 600px; position: absolute;"></div>
         <canvas id="canvas" width=600 height=600 style="background-color: lightgreen"></canvas>
 
         <script>
@@ -24,6 +25,10 @@
                     players.push(network);
                 }
                 newGame();
+            });
+            
+            socket.on('msg', function(msg) {
+                document.getElementById('overlay').innerHTML = msg; 
             });
         
             var speed = 0.5;
