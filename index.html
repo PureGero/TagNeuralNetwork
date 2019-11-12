@@ -10,9 +10,9 @@
         <canvas id="canvas" width=600 height=600 style="background-color: lightgreen"></canvas>
 
         <script>
-            var speed = 0.5;
+            var speed = 1;
     
-            var dots = [{x:0.5,y:0.5}];
+            var dots = [];
             var keys = {};
     
             window.onkeydown = function(e) {
@@ -32,7 +32,8 @@
             }
             
             var GAMES = 512;
-            var SECONDS_PER_GAME = 3;
+            var GAMES_PER_GENERATION = 10;
+            var SECONDS_PER_GAME = 2;
             var PLAYER_COUNT = 6;
             var TAGGER_COUNT = 2;
             
@@ -41,16 +42,18 @@
             var games = [];
             
             var players = [];
-            var baseNetwork = NeuralNetwork.createHiddenLayeredNetwork(PLAYER_COUNT*2, PLAYER_COUNT*2, 4, 4);
+            var baseNetwork = NeuralNetwork.createHiddenLayeredNetwork(PLAYER_COUNT*3, PLAYER_COUNT*2, 4, 4);
             for (var i = 0; i < PLAYER_COUNT; i++) {
                 players.push(new Neat(GAMES, 4, baseNetwork));
                 players[i].evolveRate = 0.9;
             }
     
             function newGeneration() {
-                generations++;
-                for (var i = 0; i < players.length; i++)
-                    players[i].evolve();
+                if (generations % GAMES_PER_GENERATION == 0) {
+                    console.log("New Generation!");
+                    for (var i = 0; i < players.length; i++)
+                        players[i].evolve();
+                }
                 ticks = 0;
                 games = [];
                 for (var j = 0; j < GAMES; j++) {
@@ -78,9 +81,14 @@
                             players[i].scores[j] += 1;
                     }
                 }
+                
+                generations++;
     
-                for (var i = 0; i < players.length; i++)
-                    players[i].breed();
+                if (generations % GAMES_PER_GENERATION == 0) {
+                    console.log("Finish Generation!");
+                    for (var i = 0; i < players.length; i++)
+                        players[i].breed();
+                }
                 newGeneration();
             }
     
@@ -90,8 +98,9 @@
                     var network = players[i].networks[game];
         
                     for (var j = 0; j < dots.length; j++) {
-                        network.setInputValue(j*2, dots[j].x);
-                        network.setInputValue(j*2 + 1, dots[j].y);
+                        network.setInputValue(j*3, dots[j].x);
+                        network.setInputValue(j*3 + 1, dots[j].y);
+                        network.setInputValue(j*3 + 2, dots[j].tagged ? 1 : 0);
                     }
         
                     network.run();

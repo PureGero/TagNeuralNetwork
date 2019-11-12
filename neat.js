@@ -102,3 +102,7 @@ Neat.evolveHiddenLayeredNetwork = function(network) {
         Neat.modifyRandomInput(network);
     } while (Math.random() < this.evolveRate);
 }
+
+if (typeof module !== 'undefined') {
+    module.exports = Neat;
+}

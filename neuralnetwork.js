@@ -135,7 +135,8 @@ NeuralNetwork.prototype.dumpNeurons = function() {
 
 /** Load a string of neurons */
 NeuralNetwork.prototype.loadNeurons = function(jsonString) {
-    neurons = JSON.parse(jsonString);
+    this.neurons = JSON.parse(jsonString);
+    return this;
 }
 
 /** Returns a clone of this network, recommend reset() before clone() */
@@ -189,6 +190,6 @@ NeuralNetwork.createHiddenLayeredNetwork = function(...layerCounts) {
     return neuralNetwork;
 }
 
-if ('module' in this) {
+if (typeof module !== 'undefined') {
     module.exports = NeuralNetwork;
 }

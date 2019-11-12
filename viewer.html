@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang=en>
+    <head>
+        <title>Tag</title>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.0/socket.io.js"></script>
+        <script src="neuralnetwork.js"></script>
+        <script src="neat.js"></script>
+    </head>
+    <body>
+        <canvas id="canvas" width=600 height=600 style="background-color: lightgreen"></canvas>
+
+        <script>
+            if (location.hostname)
+                var socket = io('http://' + location.hostname + ':1612');
+            else
+                var socket = io('http://localhost:1612');
+                
+            socket.on('players', function(data) {
+                console.log(data);
+                players = [];
+                for (var i = 0; i < data.length; i++) {
+                    var network = NeuralNetwork.createHiddenLayeredNetwork(PLAYER_COUNT*2, 4, 4);
+                    network.neurons = data[i];
+                    players.push(network);
+                }
+                newGame();
+            });
+        
+            var speed = 0.5;
+    
+            var dots = [];
+            var keys = {};
+    
+            window.onkeydown = function(e) {
+                if (e.key == 'w') keys.forward = true;
+                if (e.key == 'a') keys.left = true;
+                if (e.key == 's') keys.reverse = true;
+                if (e.key == 'd') keys.right = true;
+                if (e.key == ' ') keys.debug = true;
+            }
+    
+            window.onkeyup = function(e) {
+                if (e.key == 'w') keys.forward = false;
+                if (e.key == 'a') keys.left = false;
+                if (e.key == 's') keys.reverse = false;
+                if (e.key == 'd') keys.right = false;
+                if (e.key == ' ') keys.debug = false;
+            }
+            
+            var SECONDS_PER_GAME = 5;
+            var PLAYER_COUNT = 2;
+            var TAGGER_COUNT = 1;
+            
+            var ticks = 0;
+            var generations = 0;
+            
+            var players = [];
+    
+            function newGame() {
+                ticks = 0;
+                dots = [];
+                for (var i = 0; i < players.length; i++) {
+                    var x = Math.random();
+                    var y = Math.random();
+                    dots.push({
+                        x: x, 
+                        y: y, 
+                        tagged: false, 
+                        tagger: i < TAGGER_COUNT
+                    });
+                }
+            }
+    
+            function runDot(i) {
+                var dot = dots[i];
+                if (!dot.tagged) {
+                    var network = players[i];
+        
+                    for (var j = 0; j < dots.length; j++) {
+                        network.setInputValue(j*2, dots[j].x);
+                        network.setInputValue(j*2 + 1, dots[j].y);
+                        //network.setInputValue(j*2 + 2, dots[j].tagged ? 1 : 0);
+                    }
+        
+                    network.run();
+        
+                    var up = network.getOutputValue(0);
+                    var down = network.getOutputValue(1);
+                    var left = network.getOutputValue(2);
+                    var right = network.getOutputValue(3);
+        
+                    if (up) dot.y -= speed*dt;
+                    if (down) dot.y += speed*dt;
+                    if (left) dot.x -= speed*dt;
+                    if (right) dot.x += speed*dt;
+        
+                    if (dot.x < 0) dot.x = 0;
+                    if (dot.x > 1) dot.x = 1;
+                    if (dot.y < 0) dot.y = 0;
+                    if (dot.y > 1) dot.y = 1;
+                
+                    if (dot.tagger) {
+                        for (var j = 0; j < dots.length; j++) {
+                            var d2 = dots[j];
+                            if (!d2.tagger && !d2.tagged && 
+                                    Math.abs(dot.x - d2.x) < 0.03 && 
+                                    Math.abs(dot.y - d2.y) < 0.03) {
+                                d2.tagged = true;
+                            }
+                        }
+                    }
+                }
+            }
+    
+            var lastRun = Date.now();
+            function run() {
+                var now = Date.now();
+                dt = (now-lastRun)/1000;
+                lastRun = now;
+                if (dt > 1/20) dt = 1/20;
+                ticks += dt;
+        
+                if (ticks >= SECONDS_PER_GAME) {
+                    newGame();
+                }
+        
+                for (var i = 0; i < dots.length; i++) {
+                    runDot(i);
+                }
+            }
+    
+            function render() {
+                dt = 1/60;
+    
+                var canvas = document.getElementById('canvas');
+                canvas.width = 600;
+        
+                var c = canvas.getContext('2d');
+        
+                c.save();
+                c.scale(canvas.width, canvas.height);
+        
+                for (var i = 0; i < dots.length; i++) {
+                    c.beginPath();
+                    dot = dots[i];
+            
+                    c.save();
+                    c.fillStyle = dot.tagger ? 'red' : dot.tagged ? 'grey' : 'blue';
+                    c.strokeStyle = 'black';
+                    c.lineWidth = 0.005;
+                    c.translate(dot.x, dot.y);
+                    c.arc(0, 0, 0.015, 0, 2*Math.PI);
+                    c.fill();
+                    c.stroke();
+            
+                    if (keys.debug) {
+                        c.score = speciesScores[i];
+                        c.font = '0.05px Arial';
+                        c.fillText(Math.floor(score*100)/100, 0.01, 0.01);
+                    }
+            
+                    c.restore();
+                }
+        
+                c.restore();
+        
+                requestAnimationFrame(render);
+            }
+    
+            var loadPlayers = [[{"value":1},{"value":1},{"value":0},{"value":1},{"value":0.1241378285161554},{"inputs":[{"src":9,"weight":0.4578803553618558},{"src":0,"weight":0.49941382950594715},{"src":10,"weight":0.8304108768440779},{"src":11,"weight":0.2550714229879856},{"src":12,"weight":0.5626492271688637}],"value":1},{"inputs":[{"src":9,"weight":-0.722669468748236},{"src":0,"weight":0.07585582914477618},{"src":10,"weight":0.27585236566106097},{"src":11,"weight":0.4690299823348183},{"src":12,"weight":-0.8527466413746931}],"value":0},{"inputs":[{"src":9,"weight":0.7506425671199888},{"src":0,"weight":-0.5404507133326097},{"src":10,"weight":-0.3182785228655409},{"src":11,"weight":0.7697225786788735},{"src":12,"weight":0.8402791906595928}],"value":1},{"inputs":[{"src":9,"weight":-0.6297809050046279},{"src":0,"weight":-0.4478360324464905},{"src":10,"weight":0.8866732260604282},{"src":11,"weight":0.19335516328387126},{"src":12,"weight":-0.3489800872658875}],"value":0},{"inputs":[{"src":1,"weight":0.7347381710409242},{"src":0,"weight":-0.0739590304031652},{"src":2,"weight":0.44386843319959945},{"src":3,"weight":-0.6616170096090537},{"src":4,"weight":0.07982179321885807}],"value":1},{"inputs":[{"src":1,"weight":0.09608556713018146},{"src":0,"weight":-0.11407810128020346},{"src":2,"weight":-0.4709530688301302},{"src":3,"weight":0.5540818811190125},{"src":4,"weight":-0.46123594657983036}],"value":1},{"inputs":[{"src":1,"weight":-0.5468349298578201},{"src":0,"weight":-0.5111617586496329},{"src":2,"weight":-0.975062277973473},{"src":3,"weight":-0.838431306369158},{"src":4,"weight":-0.0687206831385696}],"value":0},{"inputs":[{"src":1,"weight":0.8211298253382497},{"src":0,"weight":0.6511486777397413},{"src":2,"weight":0.6438686339853401},{"src":3,"weight":-0.9479954617888446},{"src":4,"weight":0.9465945005501468}],"value":1}],[{},{},{},{},{},{"inputs":[{"src":9,"weight":-0.1622066999107279},{"src":0,"weight":0.5528596663922327},{"src":10,"weight":-0.7164774729370724},{"src":11,"weight":-0.8759328092091074},{"src":12,"weight":-0.8036673884492358}]},{"inputs":[{"src":9,"weight":0.35877296484945154},{"src":0,"weight":0.7966251014643082},{"src":10,"weight":-0.44222637019240674},{"src":11,"weight":-0.7943836600035303},{"src":12,"weight":0.43790078565189683}]},{"inputs":[{"src":9,"weight":-0.7900774208911554},{"src":0,"weight":-0.2348838899053347},{"src":10,"weight":-0.006287887132837788},{"src":11,"weight":-0.5924584640303663},{"src":12,"weight":0.8316592825889222}]},{"inputs":[{"src":9,"weight":0.9786807067619208},{"src":0,"weight":0.3887161771096066},{"src":10,"weight":-0.057661891166747026},{"src":11,"weight":0.21975499809073717},{"src":12,"weight":-0.8524965086375711}]},{"inputs":[{"src":1,"weight":0.3730951848768802},{"src":0,"weight":0.9133862726837809},{"src":2,"weight":-0.019071223621299982},{"src":3,"weight":0.7707107540097766},{"src":4,"weight":0.37058151620026525}]},{"inputs":[{"src":1,"weight":-0.8744084234386813},{"src":0,"weight":0.7880149452492708},{"src":2,"weight":0.124870017956757},{"src":3,"weight":0.5083985906182193},{"src":4,"weight":0.06270378920141262}]},{"inputs":[{"src":1,"weight":-0.9164068368995064},{"src":0,"weight":0.42425944632183477},{"src":2,"weight":0.3088008945104974},{"src":3,"weight":-0.29699886470853754},{"src":4,"weight":-0.14009138525321863}]},{"inputs":[{"src":1,"weight":-0.24583325577391646},{"src":0,"weight":0.779716458978148},{"src":2,"weight":0.10721875130407277},{"src":3,"weight":-0.15587477603801014},{"src":4,"weight":-0.861370538537098}]}]];
+            for (var i = 0; i < PLAYER_COUNT; i++) {
+                var network = NeuralNetwork.createHiddenLayeredNetwork(PLAYER_COUNT*2, 4, 4);
+                network.neurons = loadPlayers[i];
+                players.push(network);
+            }
+            
+            newGame();
+            setInterval(run, 1000/60);
+            
+            render();
+        </script>
+    </body>
+</html>
