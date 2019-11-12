@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang=en>
+    <head>
+        <title>Tag</title>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.0/socket.io.js"></script>
+        <script src="neuralnetwork.js"></script>
+        <script src="neat.js"></script>
+    </head>
+    <body>
+        <canvas id="canvas" width=600 height=600 style="background-color: lightgreen"></canvas>
+
+        <script>
+            var speed = 0.5;
+    
+            var dots = [{x:0.5,y:0.5}];
+            var keys = {};
+    
+            window.onkeydown = function(e) {
+                if (e.key == 'w') keys.forward = true;
+                if (e.key == 'a') keys.left = true;
+                if (e.key == 's') keys.reverse = true;
+                if (e.key == 'd') keys.right = true;
+                if (e.key == ' ') keys.debug = true;
+            }
+    
+            window.onkeyup = function(e) {
+                if (e.key == 'w') keys.forward = false;
+                if (e.key == 'a') keys.left = false;
+                if (e.key == 's') keys.reverse = false;
+                if (e.key == 'd') keys.right = false;
+                if (e.key == ' ') keys.debug = false;
+            }
+            
+            var GAMES = 512;
+            var SECONDS_PER_GAME = 3;
+            var PLAYER_COUNT = 6;
+            var TAGGER_COUNT = 2;
+            
+            var ticks = 0;
+            var generations = 0;
+            var games = [];
+            
+            var players = [];
+            var baseNetwork = NeuralNetwork.createHiddenLayeredNetwork(PLAYER_COUNT*2, PLAYER_COUNT*2, 4, 4);
+            for (var i = 0; i < PLAYER_COUNT; i++) {
+                players.push(new Neat(GAMES, 4, baseNetwork));
+                players[i].evolveRate = 0.9;
+            }
+    
+            function newGeneration() {
+                generations++;
+                for (var i = 0; i < players.length; i++)
+                    players[i].evolve();
+                ticks = 0;
+                games = [];
+                for (var j = 0; j < GAMES; j++) {
+                    dots = [];
+                    for (var i = 0; i < players.length; i++) {
+                        var x = Math.random();
+                        var y = Math.random();
+                        dots.push({
+                            x: x, 
+                            y: y, 
+                            tagged: false, 
+                            tagger: i < TAGGER_COUNT
+                        });
+                    }
+                    games.push({dots: dots});
+                }
+            }
+    
+            function finishGeneration() {
+                for (var j = 0; j < GAMES; j++) {
+                    dots = games[j].dots;
+                    for (var i = 0; i < dots.length; i++) {
+                        var dot = dots[i];
+                        if (!dot.tagger && !dot.tagged)
+                            players[i].scores[j] += 1;
+                    }
+                }
+    
+                for (var i = 0; i < players.length; i++)
+                    players[i].breed();
+                newGeneration();
+            }
+    
+            function runDot(game, i) {
+                var dot = dots[i];
+                if (!dot.tagged) {
+                    var network = players[i].networks[game];
+        
+                    for (var j = 0; j < dots.length; j++) {
+                        network.setInputValue(j*2, dots[j].x);
+                        network.setInputValue(j*2 + 1, dots[j].y);
+                    }
+        
+                    network.run();
+        
+                    var up = network.getOutputValue(0);
+                    var down = network.getOutputValue(1);
+                    var left = network.getOutputValue(2);
+                    var right = network.getOutputValue(3);
+        
+                    if (up) dot.y -= speed*dt;
+                    if (down) dot.y += speed*dt;
+                    if (left) dot.x -= speed*dt;
+                    if (right) dot.x += speed*dt;
+        
+                    if (dot.x < 0) dot.x = 0;
+                    if (dot.x > 1) dot.x = 1;
+                    if (dot.y < 0) dot.y = 0;
+                    if (dot.y > 1) dot.y = 1;
+                
+                    if (dot.tagger) {
+                        for (var j = 0; j < dots.length; j++) {
+                            var d2 = dots[j];
+                            if (!d2.tagger && !d2.tagged && 
+                                    Math.abs(dot.x - d2.x) < 0.03 && 
+                                    Math.abs(dot.y - d2.y) < 0.03) {
+                                d2.tagged = true;
+                                players[i].scores[game] += 1;
+                            }
+                        }
+                    }
+                }
+            }
+    
+            var lastRun = Date.now();
+            function run() {
+                var now = Date.now();
+                dt = (now-lastRun)/1000;
+                lastRun = now;
+                if (dt > 1/20) dt = 1/20;
+                ticks += dt;
+        
+                if (ticks >= SECONDS_PER_GAME) {
+                    finishGeneration();
+                }
+        
+                for (var j = 0; j < GAMES; j++) {
+                    dots = games[j].dots;
+                    for (var i = 0; i < dots.length; i++) {
+                        runDot(j, i);
+                    }
+                }
+            }
+    
+            function render() {
+                dt = 1/60;
+    
+                var canvas = document.getElementById('canvas');
+                canvas.width = 600;
+        
+                var c = canvas.getContext('2d');
+        
+                c.save();
+                c.scale(canvas.width, canvas.height);
+        
+                dots = games[0].dots;
+        
+                for (var i = 0; i < dots.length; i++) {
+                    c.beginPath();
+                    dot = dots[i];
+            
+                    c.save();
+                    c.fillStyle = dot.tagger ? 'red' : dot.tagged ? 'grey' : 'blue';
+                    c.strokeStyle = 'black';
+                    c.lineWidth = 0.005;
+                    c.translate(dot.x, dot.y);
+                    c.arc(0, 0, 0.015, 0, 2*Math.PI);
+                    c.fill();
+                    c.stroke();
+            
+                    if (keys.debug) {
+                        c.score = speciesScores[i];
+                        c.font = '0.05px Arial';
+                        c.fillText(Math.floor(score*100)/100, 0.01, 0.01);
+                    }
+            
+                    c.restore();
+                }
+        
+                c.restore();
+        
+                requestAnimationFrame(render);
+            }
+    
+            newGeneration();
+            render();
+            setInterval(run, 1000/60);
+        </script>
+    </body>
+</html>
