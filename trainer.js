@@ -6,7 +6,7 @@ const fs = require('fs');
 const NeuralNetwork = require('./neuralnetwork.js');
 const Neat = require('./neat.js');
 
-var CPU_TARGET = 10;
+var CPU_TARGET = 25;
 
 var speed = 0.5;
     
@@ -14,7 +14,7 @@ var dots = [];
 
 var GAMES = 256;
 var GAMES_PER_GENERATION = 20;
-var GENERATIONS_PER_TRAINING = 25;
+var GENERATIONS_PER_TRAINING = 20;
 var SECONDS_PER_GAME = 5;
 var PLAYER_COUNT = 2;
 var TAGGER_COUNT = 1;
@@ -27,6 +27,7 @@ var training = 0;
 var moves = 0;
 
 var writtenPlayers = [];
+var previousBest2 = [];
 var previousBest = [];
 var players = [];
 var baseNetwork = NeuralNetwork.createHiddenLayeredNetwork(PLAYER_COUNT*2, 4, 4);
@@ -34,6 +35,7 @@ for (var i = 0; i < PLAYER_COUNT; i++) {
     players.push(new Neat(GAMES, 4, baseNetwork));
     players[i].evolveRate = 0.9;
     previousBest.push(baseNetwork);
+    previousBest2.push(baseNetwork);
 }
 
 app.get('/', function(req, res){
@@ -122,13 +124,15 @@ function runGame(networks) {
 function runGeneration(training) {
     players[training].evolve();
     for (var j = 0; j < GAMES; j++) {
-        for (var i = 0; i < GAMES_PER_GENERATION*1.5; i++) {
+        for (var i = 0; i < GAMES_PER_GENERATION*2; i++) {
             var networks = [];
             for (var k = 0; k < players.length; k++) {
                 if (i < GAMES_PER_GENERATION || training == k) { // Fight current agents
                     networks.push(players[k].networks[training == k ? j : 0]);
-                } else { // Fight previous agents
+                } else if (i < GAMES_PER_GENERATION*1.5) { // Fight previous agents
                     networks.push(previousBest[k]);
+                } else { // Fight previous agents
+                    networks.push(previousBest2[k]);
                 }
             }
             
@@ -150,6 +154,7 @@ function run() {
     runGeneration(training);
 
     if (generations % (GENERATIONS_PER_TRAINING) == 0) {
+        previousBest2[training] = previousBest[training];
         previousBest[training] = players[training].networks[0];
     
         training = (training + 1) % PLAYER_COUNT;
@@ -159,7 +164,7 @@ function run() {
     }
     
     var dt = Date.now() - t;
-    setTimeout(run, 2*(1-CPU_TARGET/100)*dt);
+    setTimeout(run, dt/(1-CPU_TARGET/100)*(CPU_TARGET/100));
 }
 
 function writeBestToDisk() {
