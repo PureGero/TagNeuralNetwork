@@ -108,8 +108,8 @@
                         for (var j = 0; j < dots.length; j++) {
                             var d2 = dots[j];
                             if (!d2.tagger && !d2.tagged && 
-                                    Math.abs(dot.x - d2.x) < 0.03 && 
-                                    Math.abs(dot.y - d2.y) < 0.03) {
+                                    Math.abs(dot.x - d2.x) < 0.05 && 
+                                    Math.abs(dot.y - d2.y) < 0.05) {
                                 d2.tagged = true;
                             }
                         }
