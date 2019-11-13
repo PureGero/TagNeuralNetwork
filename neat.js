@@ -44,6 +44,8 @@ Neat.prototype.breed = function() {
             this.networks.push(parents[i].network.clone());
         }
     }
+    
+    return parents[0].score;
 }
 
 Neat.prototype.evolve = function evolve() {

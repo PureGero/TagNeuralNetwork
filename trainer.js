@@ -6,15 +6,15 @@ const fs = require('fs');
 const NeuralNetwork = require('./neuralnetwork.js');
 const Neat = require('./neat.js');
 
-var CPU_TARGET = 25;
+var CPU_TARGET = 50;
 
 var speed = 0.5;
     
 var dots = [];
 
 var GAMES = 256;
-var GAMES_PER_GENERATION = 20;
-var GENERATIONS_PER_TRAINING = 20;
+var GAMES_PER_GENERATION = 40;
+var GENERATIONS_PER_TRAINING = 50;
 var SECONDS_PER_GAME = 5;
 var PLAYER_COUNT = 2;
 var TAGGER_COUNT = 1;
@@ -31,6 +31,7 @@ var previousBest2 = [];
 var previousBest = [];
 var players = [];
 var baseNetwork = NeuralNetwork.createHiddenLayeredNetwork(PLAYER_COUNT*2, 4, 4);
+var lastScore = 0;
 for (var i = 0; i < PLAYER_COUNT; i++) {
     players.push(new Neat(GAMES, 4, baseNetwork));
     players[i].evolveRate = 0.9;
@@ -124,12 +125,12 @@ function runGame(networks) {
 function runGeneration(training) {
     players[training].evolve();
     for (var j = 0; j < GAMES; j++) {
-        for (var i = 0; i < GAMES_PER_GENERATION*2; i++) {
+        for (var i = 0; i < GAMES_PER_GENERATION; i++) {
             var networks = [];
             for (var k = 0; k < players.length; k++) {
-                if (i < GAMES_PER_GENERATION || training == k) { // Fight current agents
+                if (i < GAMES_PER_GENERATION/2 || training == k) { // Fight current agents
                     networks.push(players[k].networks[training == k ? j : 0]);
-                } else if (i < GAMES_PER_GENERATION*1.5) { // Fight previous agents
+                } else if (i < GAMES_PER_GENERATION*3/4) { // Fight previous agents
                     networks.push(previousBest[k]);
                 } else { // Fight previous agents
                     networks.push(previousBest2[k]);
@@ -144,14 +145,21 @@ function runGeneration(training) {
                 players[training].scores[j] += 1;
         }
     }
-    players[training].breed();
     generations++;
+    return players[training].breed();
 }
 
 function run() {
     var t = Date.now();
 
-    runGeneration(training);
+    var score = runGeneration(training);
+    
+    if (score == lastScore && score == GAMES_PER_GENERATION) {
+        generations += GENERATIONS_PER_TRAINING - (generations % (GENERATIONS_PER_TRAINING));
+        score = 0;
+    }
+    
+    lastScore = score;
 
     if (generations % (GENERATIONS_PER_TRAINING) == 0) {
         previousBest2[training] = previousBest[training];
@@ -164,7 +172,7 @@ function run() {
     }
     
     var dt = Date.now() - t;
-    setTimeout(run, dt/(1-CPU_TARGET/100)*(CPU_TARGET/100));
+    setTimeout(run, dt/(CPU_TARGET/100)*(1-CPU_TARGET/100));
 }
 
 function writeBestToDisk() {
