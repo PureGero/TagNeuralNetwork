@@ -166,6 +166,7 @@ function run() {
     lastScore = score;
 
     if (generations % (GENERATIONS_PER_TRAINING) == 0) {
+        previousBest3[training] = previousBest2[training];
         previousBest2[training] = previousBest[training];
         previousBest[training] = players[training].networks[0];
     
