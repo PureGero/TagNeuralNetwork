@@ -13,7 +13,7 @@ var speed = 0.5;
 var dots = [];
 
 var GAMES = 256;
-var GAMES_PER_GENERATION = 40;
+var GAMES_PER_GENERATION = 50;
 var GENERATIONS_PER_TRAINING = 50;
 var SECONDS_PER_GAME = 5;
 var PLAYER_COUNT = 2;
@@ -27,6 +27,7 @@ var training = 0;
 var moves = 0;
 
 var writtenPlayers = [];
+var previousBest3 = [];
 var previousBest2 = [];
 var previousBest = [];
 var players = [];
@@ -34,9 +35,10 @@ var baseNetwork = NeuralNetwork.createHiddenLayeredNetwork(PLAYER_COUNT*2, 4, 4)
 var lastScore = 0;
 for (var i = 0; i < PLAYER_COUNT; i++) {
     players.push(new Neat(GAMES, 4, baseNetwork));
-    players[i].evolveRate = 0.9;
+    players[i].evolveRate = 0.5;
     previousBest.push(baseNetwork);
     previousBest2.push(baseNetwork);
+    previousBest3.push(baseNetwork);
 }
 
 app.get('/', function(req, res){
@@ -130,10 +132,12 @@ function runGeneration(training) {
             for (var k = 0; k < players.length; k++) {
                 if (i < GAMES_PER_GENERATION/2 || training == k) { // Fight current agents
                     networks.push(players[k].networks[training == k ? j : 0]);
-                } else if (i < GAMES_PER_GENERATION*3/4) { // Fight previous agents
+                } else if (i < GAMES_PER_GENERATION*4/6) { // Fight previous agents
                     networks.push(previousBest[k]);
-                } else { // Fight previous agents
+                } else if (i < GAMES_PER_GENERATION*5/6) { // Fight previous agents
                     networks.push(previousBest2[k]);
+                } else { // Fight previous agents
+                    networks.push(previousBest3[k]);
                 }
             }
             
