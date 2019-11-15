@@ -6,14 +6,15 @@ const fs = require('fs');
 const NeuralNetwork = require('./neuralnetwork.js');
 const Neat = require('./neat.js');
 
-var CPU_TARGET = 50;
+var CPU_TARGET = 100;
 
 var speed = 0.5;
     
 var dots = [];
 
 var GAMES = 256;
-var GAMES_PER_GENERATION = 50;
+var GAMES_PER_GENERATION = 100;
+var PAST_GAMES = 80;
 var GENERATIONS_PER_TRAINING = 50;
 var SECONDS_PER_GAME = 5;
 var PLAYER_COUNT = 2;
@@ -25,20 +26,17 @@ var games = [];
 var dt = 1/20;
 var training = 0;
 var moves = 0;
+var times_trained = 0;
 
 var writtenPlayers = [];
-var previousBest3 = [];
-var previousBest2 = [];
-var previousBest = [];
+var previousBests = [];
 var players = [];
 var baseNetwork = NeuralNetwork.createHiddenLayeredNetwork(PLAYER_COUNT*2, 4, 4);
 var lastScore = 0;
 for (var i = 0; i < PLAYER_COUNT; i++) {
     players.push(new Neat(GAMES, 4, baseNetwork));
     players[i].evolveRate = 0.5;
-    previousBest.push(baseNetwork);
-    previousBest2.push(baseNetwork);
-    previousBest3.push(baseNetwork);
+    previousBests.push([]);
 }
 
 app.get('/', function(req, res){
@@ -49,6 +47,11 @@ io.on('connection', function(socket) {
     socket.emit('players', writtenPlayers);
     socket.emit('msg', (training?'Red':'Blue') + ' dot has been trained');
 });
+
+function random(seed) {
+    var x = Math.sin(seed) * 100000;
+    return x - Math.floor(x);
+}
 
 function runDot(network, i) {
     var dot = dots[i];
@@ -96,12 +99,12 @@ function runDot(network, i) {
     }
 }
 
-function runGame(networks) {
+function runGame(networks, seed) {
     ticks = 0;
     dots = [];
     for (var i = 0; i < networks.length; i++) {
-        var x = Math.random();
-        var y = Math.random();
+        var x = random(seed + i/networks.length);
+        var y = random(seed + i/networks.length + Math.sin(i));
         dots.push({
             x: x, 
             y: y, 
@@ -130,18 +133,18 @@ function runGeneration(training) {
         for (var i = 0; i < GAMES_PER_GENERATION; i++) {
             var networks = [];
             for (var k = 0; k < players.length; k++) {
-                if (i < GAMES_PER_GENERATION/2 || training == k) { // Fight current agents
+                if (i < PAST_GAMES && training != k) { // Fight previous agents
+                    if (i < previousBests[k].length) {
+                        networks.push(previousBests[k][i]);
+                    } else {
+                        networks.push(baseNetwork);
+                    }
+                } else { // Fight current agents
                     networks.push(players[k].networks[training == k ? j : 0]);
-                } else if (i < GAMES_PER_GENERATION*4/6) { // Fight previous agents
-                    networks.push(previousBest[k]);
-                } else if (i < GAMES_PER_GENERATION*5/6) { // Fight previous agents
-                    networks.push(previousBest2[k]);
-                } else { // Fight previous agents
-                    networks.push(previousBest3[k]);
                 }
             }
             
-            runGame(networks);
+            runGame(networks, i + generations*GAMES_PER_GENERATION);
             
             if (dots[training].tagger) // Is tagger
                 players[training].scores[j] += dots[training].tagged_count;
@@ -166,9 +169,9 @@ function run() {
     lastScore = score;
 
     if (generations % (GENERATIONS_PER_TRAINING) == 0) {
-        previousBest3[training] = previousBest2[training];
-        previousBest2[training] = previousBest[training];
-        previousBest[training] = players[training].networks[0];
+        previousBests[training].push(players[training].networks[0]);
+        if (previousBests[training].length > PAST_GAMES) // Remove a random previous best
+            previousBests[training].splice(Math.floor(Math.random()*previousBestspreviousBests[training].length), 1);
     
         training = (training + 1) % PLAYER_COUNT;
         console.log("Begin training of", training);
@@ -200,7 +203,7 @@ fs.readFile("players.json", "utf-8", (err, data) => {
         var loadPlayers = JSON.parse(data);
         players = [];
         for (var i = 0; i < loadPlayers.length; i++) {
-            var network = NeuralNetwork.createHiddenLayeredNetwork(PLAYER_COUNT*2, 4, 4);
+            var network = NeuralNetwork.createMemoryNetwork(PLAYER_COUNT*2, 6, 6, 6, 4);
             network.neurons = loadPlayers[i];
             players.push(new Neat(GAMES, 4, network));
         }

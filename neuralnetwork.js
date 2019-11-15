@@ -190,6 +190,47 @@ NeuralNetwork.createHiddenLayeredNetwork = function(...layerCounts) {
     return neuralNetwork;
 }
 
+/** Inputs, ...HiddenLayers, Outputs
+ *  Links the last hidden layer with the first hidden layer to form a memory
+ */
+NeuralNetwork.createMemoryNetwork = function(...layerCounts) {
+    neuralNetwork = new NeuralNetwork(layerCounts[0], layerCounts[layerCounts.length-1]);
+    
+    var layers = [];
+    for (var j = 1; j < layerCounts.length - 1; j++) {
+        var layer = [];
+        for (var i = 0; i < layerCounts[j]; i++) {
+            layer.push(neuralNetwork.addNewNeuron());
+        }
+        layers.push(layer);
+    }
+    
+    var inputLayer = [];
+    for (var i = 0; i < neuralNetwork.inputs; i++)
+        inputLayer.push(neuralNetwork.getInputIndex(i));
+        
+    var outputLayer = [];
+    for (var i = 0; i < neuralNetwork.outputs; i++)
+        outputLayer.push(neuralNetwork.getOutputIndex(i));
+        
+    if (layers.length == 0) {
+        neuralNetwork.linkLayers(inputLayer, outputLayer);
+    } else {
+        neuralNetwork.linkLayers(inputLayer, layers[0]);
+        neuralNetwork.linkLayers(layers[layers.length - 1], outputLayer);
+    }
+    
+    if (layers.length < 4) {
+        console.error(layerCounts, "are not enough to make a memory network. Min 4");
+        neuralNetwork.linkLayers(layers[layers.length - 1], layers[0]);
+    }
+    
+    for (var i = 1; i < layers.length; i++)
+        neuralNetwork.linkLayers(layers[i - 1], layers[i]);
+        
+    return neuralNetwork;
+}
+
 if (typeof module !== 'undefined') {
     module.exports = NeuralNetwork;
 }
