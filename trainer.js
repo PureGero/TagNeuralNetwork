@@ -6,7 +6,7 @@ const fs = require('fs');
 const NeuralNetwork = require('./neuralnetwork.js');
 const Neat = require('./neat.js');
 
-var CPU_TARGET = 100;
+var CPU_TARGET = 50;
 
 var speed = 0.5;
     
