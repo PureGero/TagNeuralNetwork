@@ -171,7 +171,7 @@ function run() {
     if (generations % (GENERATIONS_PER_TRAINING) == 0) {
         previousBests[training].push(players[training].networks[0]);
         if (previousBests[training].length > PAST_GAMES) // Remove a random previous best
-            previousBests[training].splice(Math.floor(Math.random()*previousBestspreviousBests[training].length), 1);
+            previousBests[training].splice(Math.floor(Math.random()*previousBests[training].length), 1);
     
         training = (training + 1) % PLAYER_COUNT;
         console.log("Begin training of", training);

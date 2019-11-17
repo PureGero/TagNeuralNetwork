@@ -7,10 +7,33 @@
         <script src="neat.js"></script>
     </head>
     <body>
+        <div id="overlay" style="font-size: 32px; font-family: Arial; text-align: center; padding-top: 280px; width: 600px; position: absolute;">Loading...</div>
         <canvas id="canvas" width=600 height=600 style="background-color: lightgreen"></canvas>
 
         <script>
-            var speed = 1;
+            /*if (location.hostname)
+                var socket = io('http://' + location.hostname + ':1612');
+            else
+                var socket = io('http://localhost:1612');*/
+            
+            var xhttp = new XMLHttpRequest();
+            xhttp.onreadystatechange = function() {
+                if (this.readyState == 4 && this.status == 200) {
+                    document.getElementById('overlay').innerHTML = '';
+                    data = JSON.parse(xhttp.responseText);
+                    players = [];
+                    for (var i = 0; i < data.length; i++) {
+                        var network = NeuralNetwork.createHiddenLayeredNetwork(PLAYER_COUNT*2, 4, 4);
+                        network.neurons = data[i];
+                        players.push(network);
+                    }
+                    newGame();
+                }
+            };
+            xhttp.open("GET", "players.json", true);
+            xhttp.send();
+        
+            var speed = 0.5;
     
             var dots = [];
             var keys = {};
@@ -31,84 +54,77 @@
                 if (e.key == ' ') keys.debug = false;
             }
             
-            var GAMES = 512;
-            var GAMES_PER_GENERATION = 10;
-            var SECONDS_PER_GAME = 2;
-            var PLAYER_COUNT = 6;
-            var TAGGER_COUNT = 2;
+            var PLAYER_COUNT = 2;
+            var TAGGER_COUNT = 1;
+            var TAGGED_TIME = 3000;
             
-            var ticks = 0;
-            var generations = 0;
-            var games = [];
+            var players = []; // 0 is chaser, 1 is runner
             
-            var players = [];
-            var baseNetwork = NeuralNetwork.createHiddenLayeredNetwork(PLAYER_COUNT*3, PLAYER_COUNT*2, 4, 4);
-            for (var i = 0; i < PLAYER_COUNT; i++) {
-                players.push(new Neat(GAMES, 4, baseNetwork));
-                players[i].evolveRate = 0.9;
-            }
+            var me = Math.floor(Math.random() * PLAYER_COUNT);
     
-            function newGeneration() {
-                if (generations % GAMES_PER_GENERATION == 0) {
-                    console.log("New Generation!");
-                    for (var i = 0; i < players.length; i++)
-                        players[i].evolve();
-                }
+            function newGame() {
                 ticks = 0;
-                games = [];
-                for (var j = 0; j < GAMES; j++) {
-                    dots = [];
-                    for (var i = 0; i < players.length; i++) {
-                        var x = Math.random();
-                        var y = Math.random();
-                        dots.push({
-                            x: x, 
-                            y: y, 
-                            tagged: false, 
-                            tagger: i < TAGGER_COUNT
-                        });
-                    }
-                    games.push({dots: dots});
+                dots = [];
+                for (var i = 0; i < PLAYER_COUNT; i++) {
+                    var x = Math.random();
+                    var y = Math.random();
+                    dots.push({
+                        x: x, 
+                        y: y, 
+                        tagged: 0, 
+                        tagger: i < TAGGER_COUNT
+                    });
                 }
             }
     
-            function finishGeneration() {
-                for (var j = 0; j < GAMES; j++) {
-                    dots = games[j].dots;
-                    for (var i = 0; i < dots.length; i++) {
-                        var dot = dots[i];
-                        if (!dot.tagger && !dot.tagged)
-                            players[i].scores[j] += 1;
+            function getClosestEnemyDot(d) {
+                var closest = null;
+                var closestDist = 10;
+                for (var i = 0; i < dots.length; i++) {
+                    var d2 = dots[i];
+                    if (d2.tagger == d.tagger) continue;
+                    var dist = (d.x-d2.x)*(d.x-d2.x) + (d.y-d2.y)*(d.y-d2.y);
+                    if (dist < closestDist) {
+                        closestDist = dist;
+                        closest = d2;
                     }
                 }
-                
-                generations++;
-    
-                if (generations % GAMES_PER_GENERATION == 0) {
-                    console.log("Finish Generation!");
-                    for (var i = 0; i < players.length; i++)
-                        players[i].breed();
-                }
-                newGeneration();
+                return closest;
             }
-    
-            function runDot(game, i) {
+        
+            function runDot(i) {
                 var dot = dots[i];
-                if (!dot.tagged) {
-                    var network = players[i].networks[game];
+                if (dot.tagged < Date.now() - TAGGED_TIME) {
+                    var up, down, left, right;
+                    
+                    if (me == i) {
+                        up = keys.forward;
+                        down = keys.reverse;
+                        left = keys.left;
+                        right = keys.right;
+                    } else {
+                        var network = players[dot.tagger ? 0 : 1];
         
-                    for (var j = 0; j < dots.length; j++) {
-                        network.setInputValue(j*3, dots[j].x);
-                        network.setInputValue(j*3 + 1, dots[j].y);
-                        network.setInputValue(j*3 + 2, dots[j].tagged ? 1 : 0);
+                        var d2 = getClosestEnemyDot(dot);
+                        if (dot.tagger) {
+                            network.setInputValue(0, dot.x);
+                            network.setInputValue(1, dot.y);
+                            network.setInputValue(2, d2.x);
+                            network.setInputValue(3, d2.y);
+                        } else {
+                            network.setInputValue(0, d2.x);
+                            network.setInputValue(1, d2.y);
+                            network.setInputValue(2, dot.x);
+                            network.setInputValue(3, dot.y);
+                        }
+        
+                        network.run();
+        
+                        up = network.getOutputValue(0);
+                        down = network.getOutputValue(1);
+                        left = network.getOutputValue(2);
+                        right = network.getOutputValue(3);
                     }
-        
-                    network.run();
-        
-                    var up = network.getOutputValue(0);
-                    var down = network.getOutputValue(1);
-                    var left = network.getOutputValue(2);
-                    var right = network.getOutputValue(3);
         
                     if (up) dot.y -= speed*dt;
                     if (down) dot.y += speed*dt;
@@ -123,11 +139,12 @@
                     if (dot.tagger) {
                         for (var j = 0; j < dots.length; j++) {
                             var d2 = dots[j];
-                            if (!d2.tagger && !d2.tagged && 
-                                    Math.abs(dot.x - d2.x) < 0.03 && 
-                                    Math.abs(dot.y - d2.y) < 0.03) {
-                                d2.tagged = true;
-                                players[i].scores[game] += 1;
+                            if (!d2.tagger && i != j && 
+                                    Math.abs(dot.x - d2.x) < 0.05 && 
+                                    Math.abs(dot.y - d2.y) < 0.05) {
+                                d2.tagger = true;
+                                dot.tagger = false;
+                                d2.tagged = Date.now();
                             }
                         }
                     }
@@ -140,17 +157,9 @@
                 dt = (now-lastRun)/1000;
                 lastRun = now;
                 if (dt > 1/20) dt = 1/20;
-                ticks += dt;
         
-                if (ticks >= SECONDS_PER_GAME) {
-                    finishGeneration();
-                }
-        
-                for (var j = 0; j < GAMES; j++) {
-                    dots = games[j].dots;
-                    for (var i = 0; i < dots.length; i++) {
-                        runDot(j, i);
-                    }
+                for (var i = 0; i < dots.length; i++) {
+                    runDot(i);
                 }
             }
     
@@ -165,17 +174,25 @@
                 c.save();
                 c.scale(canvas.width, canvas.height);
         
-                dots = games[0].dots;
-        
                 for (var i = 0; i < dots.length; i++) {
                     c.beginPath();
                     dot = dots[i];
             
                     c.save();
-                    c.fillStyle = dot.tagger ? 'red' : dot.tagged ? 'grey' : 'blue';
+                    c.translate(dot.x, dot.y);
+            
+                    if (i == me) {
+                        c.beginPath();
+                        c.strokeStyle = '#FFAA00';
+                        c.lineWidth = 0.005;
+                        c.arc(0, 0, 0.03, 0, 2*Math.PI);
+                        c.stroke();
+                    }
+                    
+                    c.beginPath();
+                    c.fillStyle = (dot.tagged > Date.now() - TAGGED_TIME && (Date.now() - dot.tagged) % 1000 > 500) ? 'grey' : dot.tagger ? 'red' : 'blue';
                     c.strokeStyle = 'black';
                     c.lineWidth = 0.005;
-                    c.translate(dot.x, dot.y);
                     c.arc(0, 0, 0.015, 0, 2*Math.PI);
                     c.fill();
                     c.stroke();
@@ -193,10 +210,10 @@
         
                 requestAnimationFrame(render);
             }
-    
-            newGeneration();
-            render();
+            
             setInterval(run, 1000/60);
+            
+            render();
         </script>
     </body>
 </html>
