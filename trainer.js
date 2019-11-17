@@ -19,6 +19,7 @@ var GENERATIONS_PER_TRAINING = 50;
 var SECONDS_PER_GAME = 5;
 var PLAYER_COUNT = 2;
 var TAGGER_COUNT = 1;
+var SQRT2ON2 = 0.7071067811865475;
 
 var ticks = 0;
 var generations = 0;
@@ -73,10 +74,12 @@ function runDot(network, i) {
         var lx = dot.x;
         var ly = dot.y;
         
-        if (up) dot.y -= speed*dt;
-        if (down) dot.y += speed*dt;
-        if (left) dot.x -= speed*dt;
-        if (right) dot.x += speed*dt;
+        var velocity = dt*speed*((up ^ down) & (left ^ right) ? SQRT2ON2 : 1);
+
+        if (up) dot.y -= velocity;
+        if (down) dot.y += velocity;
+        if (left) dot.x -= velocity;
+        if (right) dot.x += velocity;
 
         if (dot.x < 0) dot.x = 0;
         if (dot.x > 1) dot.x = 1;
