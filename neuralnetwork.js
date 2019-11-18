@@ -222,6 +222,7 @@ NeuralNetwork.createMemoryNetwork = function(...layerCounts) {
     
     if (layers.length < 2) {
         console.error(layerCounts, "are not enough to make a memory network. Min 4");
+    } else {
         neuralNetwork.linkLayers(layers[layers.length - 1], layers[0]);
     }
     
