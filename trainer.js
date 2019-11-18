@@ -32,7 +32,7 @@ var times_trained = 0;
 var writtenPlayers = [];
 var previousBests = [];
 var players = [];
-var baseNetwork = NeuralNetwork.createHiddenLayeredNetwork(PLAYER_COUNT*2, 4, 4);
+var baseNetwork = NeuralNetwork.createMemoryNetwork(PLAYER_COUNT*2, 6, 6, 6, 4);
 var lastScore = 0;
 for (var i = 0; i < PLAYER_COUNT; i++) {
     players.push(new Neat(GAMES, 4, baseNetwork));
