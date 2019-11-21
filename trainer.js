@@ -150,9 +150,9 @@ function runGeneration(training) {
             runGame(networks, i + generations*GAMES_PER_GENERATION);
             
             if (dots[training].tagger) // Is tagger
-                players[training].scores[j] += dots[training].tagged_count;
+                players[training].scores[j] += (SECONDS_PER_GAME - ticks)/SECONDS_PER_GAME;
             else if (!dots[training].tagged) // Is runner and hasn't been tagged
-                players[training].scores[j] += 1;
+                players[training].scores[j] += ticks/SECONDS_PER_GAME;
         }
     }
     generations++;
@@ -164,7 +164,7 @@ function run() {
 
     var score = runGeneration(training);
     
-    if (score == lastScore && score == GAMES_PER_GENERATION) {
+    if (score == lastScore && score >= GAMES_PER_GENERATION) {
         generations += GENERATIONS_PER_TRAINING - (generations % (GENERATIONS_PER_TRAINING));
         score = 0;
     }
