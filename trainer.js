@@ -12,10 +12,10 @@ var speed = 0.5;
     
 var dots = [];
 
-var GAMES = 256;
+var GAMES = 128;
 var GAMES_PER_GENERATION = 100;
 var PAST_GAMES = 80;
-var GENERATIONS_PER_TRAINING = 50;
+var GENERATIONS_PER_TRAINING = 25;
 var SECONDS_PER_GAME = 5;
 var PLAYER_COUNT = 2;
 var TAGGER_COUNT = 1;
@@ -36,7 +36,7 @@ var baseNetwork = NeuralNetwork.createMemoryNetwork(PLAYER_COUNT*2, 6, 6, 6, 4);
 var lastScore = 0;
 for (var i = 0; i < PLAYER_COUNT; i++) {
     players.push(new Neat(GAMES, 4, baseNetwork));
-    players[i].evolveRate = 0.5;
+    players[i].evolveRate = 0.75;
     previousBests.push([]);
 }
 
