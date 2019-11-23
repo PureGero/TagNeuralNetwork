@@ -128,6 +128,10 @@ function runGame(networks, seed) {
             break; // Game over
         }
     }
+    
+    if (moves == 0) {
+        ticks = SECONDS_PER_GAME;
+    }
 }
 
 function runGeneration(training) {
