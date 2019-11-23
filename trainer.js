@@ -151,7 +151,7 @@ function runGeneration(training) {
             
             if (dots[training].tagger) // Is tagger
                 players[training].scores[j] += (SECONDS_PER_GAME - ticks)/SECONDS_PER_GAME;
-            else if (!dots[training].tagged) // Is runner and hasn't been tagged
+            else // Is runner and hasn't been tagged
                 players[training].scores[j] += ticks/SECONDS_PER_GAME;
         }
     }
