@@ -1,0 +1,23 @@
+{
+  "name": "tag-neural-network",
+  "version": "1.0.0",
+  "description": "A neural network that tries to play a game of tag.",
+  "main": "trainer.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PureGero/TagNeuralNetwork.git"
+  },
+  "author": "PureGero",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/PureGero/TagNeuralNetwork/issues"
+  },
+  "homepage": "https://github.com/PureGero/TagNeuralNetwork#readme",
+  "dependencies": {
+    "express": "^4.17.1",
+    "socket.io": "^4.1.2"
+  }
+}
